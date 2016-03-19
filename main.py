@@ -12,7 +12,9 @@ MAIN_PAGE_HTML = """\
       First name:<br>
       <input type="text" name="firstname"><br>
       Last name:<br>
-      <input type="text" name="lastname">
+      <input type="text" name="lastname"><br>
+      Email:<br>
+      <input type="email" name="email">
       <div><input type="submit" value="Create Account"></div>
     </form>
   </body>
@@ -27,8 +29,15 @@ class Account_DB(ndb.Model):
     date = ndb.DateTimeProperty(auto_now_add=True)
 
     @classmethod
-    def query_book(cls, ancestor_key):
-        return cls.query(ancestor=ancestor_key).order(cls.date)
+    def exists_email(cls, email):
+        query_result = cls.query(Account_DB.email == email)
+        length = 0
+        for result in query_result:
+            length += 1
+        if length == 0:
+            return False
+        return True
+
 
 
 class MainPage(webapp.RequestHandler):
@@ -42,7 +51,7 @@ class ViewAccounts(webapp.RequestHandler):
     def get(self):
         self.response.out.write('<html><body>')
         ancestor_key = ndb.Key("Accounts", "Test")
-        accounts = Account_DB.query(Account_DB.first_name=="Vasile")
+        accounts = Account_DB.query()
         length = 0
         for account in accounts:
             length +=1
@@ -63,17 +72,24 @@ class ViewAccounts(webapp.RequestHandler):
 
 class Create_Account(webapp.RequestHandler):
     def post(self):
-        self.response.out.write('<html><body>You wrote:<pre>')
-        self.response.out.write(self.request.get('firstname'))
-        self.response.out.write(self.request.get('lastname'))
-        self.response.out.write('</pre></body></html>')
+        first_name = cgi.escape(self.request.get("firstname"))
+        last_name = cgi.escape(self.request.get("lastname"))
+        email = cgi.escape(self.request.get("email"))
 
-        account = Account_DB(parent=ndb.Key("Accounts", "Test"),
-                             first_name=self.request.get("firstname"),
-                             last_name=self.request.get("lastname"),
-                             email="test@example.com"
-                             )
-        account.put()
+        print "in POst: " + email
+
+        exists_email = Account_DB.exists_email(email)
+
+        if exists_email:
+            self.response.out.write("<p>Email already exists in our database: </p>")
+        else:
+            account = Account_DB(parent=ndb.Key("Accounts", "Test"),
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email
+                                 )
+            account.put()
+            self.response.out.write("<p>Account created!</p>")
 
 
 
