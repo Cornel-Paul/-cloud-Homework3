@@ -75,11 +75,13 @@ class Create_Account(webapp.RequestHandler):
         first_name = cgi.escape(self.request.get("firstname"))
         last_name = cgi.escape(self.request.get("lastname"))
         email = cgi.escape(self.request.get("email"))
-
+        if len(email) < 1:
+            self.response.out.write("<p>Email empty!</p>")
+            return
         print "in POst: " + email
 
         exists_email = Account_DB.exists_email(email)
-
+        
         if exists_email:
             self.response.out.write("<p>Email already exists in our database: </p>")
         else:
