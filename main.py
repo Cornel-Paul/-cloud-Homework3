@@ -7,7 +7,6 @@ from random import randint
 from google.appengine.api import mail
 
 PHONE_NUMBER_LENGTH = 10
-
 MAIN_PAGE_HTML = """\
 <html>
   <body>
@@ -40,6 +39,16 @@ class Account_DB(ndb.Model):
     email_validation = ndb.StringProperty()
     phone_validation = ndb.StringProperty()
     date = ndb.DateTimeProperty(auto_now_add=True)
+
+    @classmethod
+    def email_validation(cls, email, code):
+        #check daca codul de pe mail e ok
+        return True
+
+    @classmethod
+    def phone_validation(cls, email, code):
+        #check daca codul de pe telefon e ok
+        return True
 
     @classmethod
     def exists_email(cls, email):
@@ -106,10 +115,10 @@ class CreateAccount(webapp.RequestHandler):
             self.response.out.write("<p>Email empty!</p>")
             return False
 
-        # exists_email = Account_DB.exists_email(email)
-        # if exists_email:
-        #     self.response.out.write("<p>Email already exists in our database! </p>")
-        #     return False
+        exists_email = Account_DB.exists_email(email)
+        if exists_email:
+            self.response.out.write("<p>Email already exists in our database! </p>")
+            return False
         return True
 
     def check_phone(self, phone):
@@ -147,27 +156,61 @@ class CreateAccount(webapp.RequestHandler):
 
 
         if self.check_email(email) and self.check_phone(phone) and self.check_password(password,re_password):
-            self.code_email = self.generateCode()
-            message = "Enter the following code in email code field: " + `self.code_email`
+            code_email = self.generateCode()
+            message = "Enter the following code in email code field: " + `code_email`
             self.send_email(email, "Email Verification", message)
-            self.code_phone = self.generateCode()
-            message = "Enter the following code in phone code field: " + `self.code_phone`
+            code_phone = self.generateCode()
+            message = "Enter the following code in phone code field: " + `code_phone`
             # trimite mesaj
-            # redirect pagina verifica coduri
-            # account = Account_DB(parent=ndb.Key("Accounts2", "Test"),
-            #                      first_name=first_name,
-            #                      last_name=last_name,
-            #                      email=email,
-            #                      phone=phone,
-            #                      password=password,
-            #                      email_validation="False",
-            #                      phone_validation="False"
-            #                      )
-            # account.put()
-            # self.redirect("/checkCodes")
+            account = Account_DB(parent=ndb.Key("Accounts2", "Test"),
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email,
+                                 phone=phone,
+                                 password=password,
+                                 email_validation=code_email,
+                                 phone_validation="FALSE"
+                                 )
+            account.put()
+            self.redirect("/checkCode")
             # self.response.out.write("<p>Account created!</p>")
 
-application = webapp.WSGIApplication([('/', MainPage),('/createAccount', CreateAccount),("/accounts", ViewAccounts)], debug=True)
+class CheckCodes(webapp.RequestHandler):
+
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/html'
+        page = """\
+        <html>
+          <body>
+            <form action="/checkCodes" method="post">
+              Phone code:<br>
+              <input type="text" name="phone_code"><br>
+              Mail code:<br>
+              <input type="text" name="mail_code"><br>
+              <div><input type="submit" value="Submit codes"></div>
+            </form>
+          </body>
+        </html>
+        """
+        self.response.out.write(page)
+
+    def post(self):
+        p_code = cgi.escape(self.request.get("phone_code"))
+        e_code = cgi.escape(self.request.get("mail_code"))
+        email_validation = Account_DB.email_validation(email, e_code)
+        if not email_validation:
+            self.response.out.write("<p>Email validation failed</p>")
+            # sterge din baza de date emailul si tot
+            return False
+        phone_validation = Account_DB.phone_validation(email, p_code)
+        if not phone_validation:
+            self.response.out.write("<p>Phone validation failed</p>")
+            # sterge din baza de date emailul si tot
+            return False
+        self.response.out.write("<p>Account created!</p>")
+
+
+application = webapp.WSGIApplication([('/', MainPage),('/createAccount', CreateAccount),("/accounts", ViewAccounts), ("/checkCode", CheckCodes)], debug=True)
 
 
 def main():
