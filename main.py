@@ -6,27 +6,6 @@ import cgi
 
 PHONE_NUMBER_LENGTH = 10
 
-MAIN_PAGE_HTML = """\
-<html>
-  <body>
-    <form action="/createAccount" method="post">
-      First name:<br>
-      <input type="text" name="firstname"><br>
-      Last name:<br>
-      <input type="text" name="lastname"><br>
-      Email:<br>
-      <input type="email" name="email"><br>
-      Phone number:<br>
-      <input type="text" name="phone"><br>
-      Password:<br>
-      <input type="password" name="password"><br>
-      Retype password:<br>
-      <input type="password" name="re_password"><br>
-      <div><input type="submit" value="Create Account"></div>
-    </form>
-  </body>
-</html>
-"""
 
 class Account_DB(ndb.Model):
     """Models an individual Account entry with content and date."""
@@ -38,6 +17,16 @@ class Account_DB(ndb.Model):
     email_validation = ndb.StringProperty()
     phone_validation = ndb.StringProperty()
     date = ndb.DateTimeProperty(auto_now_add=True)
+
+    @classmethod
+    def login(cls, email, password):
+        query_result = cls.query(Account_DB.email == email, Account_DB.password == password)
+        length = 0
+        for result in query_result:
+            length += 1
+        if length == 0:
+            return False
+        return True
 
     @classmethod
     def exists_email(cls, email):
@@ -65,7 +54,8 @@ class MainPage(webapp.RequestHandler):
         time = datetime.datetime.now()
         self.response.headers['Content-Type'] = 'text/html'
         self.response.out.write('<p>The time is: %s</p>' % str(time))
-        self.response.out.write(MAIN_PAGE_HTML)
+        html_file = open("index.html", "r")
+        self.response.out.write(html_file.read())
 
 
 class ViewAccounts(webapp.RequestHandler):
@@ -84,7 +74,7 @@ class ViewAccounts(webapp.RequestHandler):
             last_name = account.last_name
             email = account.email
             # phone = account.phone
-        #     date = account.date
+            date = account.date
         #     email_validation = account.email_validation
         #     phone_validation = account.phone_validation
             self.response.out.write("<p>First_name: " + first_name +
@@ -93,7 +83,7 @@ class ViewAccounts(webapp.RequestHandler):
             #                             " Phone: " + phone +
         #                                 # " validation email: " + str(email_validation) +
         #                                 # " validation phone" + str(phone_validation) +
-        #                                 # " Created date: " + str(date) +
+                                        " Created date: " + str(date) +
                                     "</p>")
 
 
@@ -121,8 +111,10 @@ class CreateAccount(webapp.RequestHandler):
             return False
         return True
 
-
     def check_password(self, password, re_password):
+        if len(password) < 8:
+            self.response.out.write("<p>Password must have al least 8 characters!</p>")
+            return False
         if password != re_password:
             self.response.out.write("<p>Password and Retype Password must be identically!</p>")
             return False
@@ -154,11 +146,23 @@ class CreateAccount(webapp.RequestHandler):
             account.put()
             self.response.out.write("<p>Account created!</p>")
 
+    def get(self):
+        html_file = open("createAccount.html", "r")
+        self.response.out.write(html_file.read())
+
+
+class Login(webapp.RequestHandler):
+    def post(self):
+        email = cgi.escape(self.request.get("email"))
+        password = cgi.escape(self.request.get("password"))
+        if Account_DB.login(email, password):
+            self.response.out.write("<p>Your logged in now!</p>")
+        else:
+            self.response.out.write("<p>Invalid username or password</p>")
 
 
 
-
-application = webapp.WSGIApplication([('/', MainPage),('/createAccount', CreateAccount),("/accounts", ViewAccounts)], debug=True)
+application = webapp.WSGIApplication([('/', MainPage), ("/login", Login), ('/createAccount', CreateAccount),("/accounts", ViewAccounts)], debug=True)
 
 
 def main():
