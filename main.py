@@ -3,6 +3,9 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext import ndb
 import datetime
 import cgi
+import random
+from google.appengine.api import mail
+from google.appengine.api import users
 
 
 MAIN_PAGE_HTML = """\
@@ -38,8 +41,6 @@ class Account_DB(ndb.Model):
             return False
         return True
 
-
-
 class MainPage(webapp.RequestHandler):
     def get(self):
         time = datetime.datetime.now()
@@ -71,6 +72,7 @@ class ViewAccounts(webapp.RequestHandler):
 
 
 class Create_Account(webapp.RequestHandler):
+
     def post(self):
         first_name = cgi.escape(self.request.get("firstname"))
         last_name = cgi.escape(self.request.get("lastname"))
@@ -92,7 +94,16 @@ class Create_Account(webapp.RequestHandler):
                                  )
             account.put()
             self.response.out.write("<p>Account created!</p>")
+            code = self.generateCode()
+            message = "<p>Enter the following code in email code field:</p><br>" + code
+            self.send_email(email, "Email Verification", message)
 
+
+    def generateCode(self):
+        return randint(1000,9999)
+
+    def send_email(self, to_addr, subject, message):
+        mail.send_mail(sender="paulacrismaru@gmail.com", to=to_addr, subject=subject, body=message)
 
 
 application = webapp.WSGIApplication([('/', MainPage),('/createAccount', Create_Account),("/accounts", ViewAccounts)], debug=True)
